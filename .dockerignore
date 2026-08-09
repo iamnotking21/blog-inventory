@@ -1,0 +1,17 @@
+node_modules
+.next
+.git
+.github
+.vercel
+legacy
+coverage
+.env
+.env.local
+.env.*.local
+npm-debug.log*
+*.md
+!README.md
+.claude
+Dockerfile
+docker-compose.yml
+.dockerignore

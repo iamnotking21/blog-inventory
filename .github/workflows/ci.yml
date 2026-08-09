@@ -1,0 +1,172 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# A new push to the same branch cancels the run already in flight.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NEXT_TELEMETRY_DISABLED: 1
+
+jobs:
+  quality:
+    name: Lint, typecheck, test
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: blog_inventory_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/blog_inventory_test
+      SESSION_SECRET: ci-session-secret-not-used-in-production
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      # Migrations run against the real service container, so the schema is
+      # exercised rather than mocked.
+      - name: Migrate
+        run: npm run db:migrate
+
+      - name: Seed
+        run: npm run db:seed
+
+      - name: Test
+        run: npm test
+
+  security:
+    name: Security
+    runs-on: ubuntu-latest
+    # Runs alongside quality; informative, and does not gate the build.
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - name: Audit dependencies
+        run: npm audit --audit-level=high
+        continue-on-error: true
+
+      - name: Scan for committed secrets
+        run: |
+          # Flags connection strings carrying an inline password. Local
+          # development defaults pointing at localhost, 127.0.0.1, or the
+          # compose service name `db` are not secrets and are allowed.
+          if grep -rInE "(postgres|postgresql|mysql)://[^ '\"]*:[^ '\"@]+@" \
+               --include="*.ts" --include="*.tsx" --include="*.js" \
+               --include="*.yml" --include="*.yaml" --include="*.json" \
+               --exclude-dir=node_modules . \
+             | grep -vE "@(localhost|127\.0\.0\.1|db|host)[:/ ]" ; then
+            echo "::error::A connection string with an inline password is committed."
+            exit 1
+          fi
+
+          if [ -f .env ]; then
+            echo "::error::.env is committed. It must be gitignored."
+            exit 1
+          fi
+
+          echo "No committed secrets found."
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    needs: quality
+
+    env:
+      DATABASE_URL: postgresql://build:build@localhost:5432/build
+      SESSION_SECRET: ci-build-secret-not-used-in-production
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - name: Build
+        run: npm run build
+
+  docker:
+    name: Docker image
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          load: true
+          tags: blog-inventory:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # Proves the image actually boots, not merely that it compiled. The app
+      # reports degraded without a database, so a 200 or a 503 both mean the
+      # server came up; a connection refusal means it did not.
+      - name: Smoke-test the image
+        run: |
+          docker run -d --name app -p 3000:3000 \
+            -e DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5432/none \
+            -e SESSION_SECRET=ci-smoke-secret-at-least-32-characters-long \
+            blog-inventory:ci
+
+          for i in $(seq 1 30); do
+            code=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/api/health || true)
+            if [ "$code" = "200" ] || [ "$code" = "503" ]; then
+              echo "Server responded with $code"
+              docker rm -f app
+              exit 0
+            fi
+            sleep 2
+          done
+
+          echo "::error::Container never served /api/health"
+          docker logs app
+          docker rm -f app
+          exit 1

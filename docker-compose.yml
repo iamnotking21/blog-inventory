@@ -1,0 +1,52 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: blog_inventory
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      # The app must not start until Postgres actually accepts connections,
+      # not merely when the container is running.
+      test: ["CMD-SHELL", "pg_isready -U postgres -d blog_inventory"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  migrate:
+    build:
+      context: .
+      target: builder
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/blog_inventory
+      SEED_ADMIN_PASSWORD: demo1234
+    command: sh -c "npm run db:migrate && npm run db:seed"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  app:
+    # DOCKER_BUILD is set inside the Dockerfile's builder stage, so no build
+    # arg is needed here.
+    build:
+      context: .
+    environment:
+      # `db` is the compose service name. Using localhost here would resolve to
+      # the app container itself and fail with ECONNREFUSED.
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/blog_inventory
+      SESSION_SECRET: ${SESSION_SECRET:-local-development-secret-change-me}
+      NODE_ENV: production
+    ports:
+      - "3000:3000"
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+
+volumes:
+  pgdata:
