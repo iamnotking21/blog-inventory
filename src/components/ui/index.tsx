@@ -23,8 +23,9 @@ const BUTTON_VARIANTS: Record<ButtonVariant, string> = {
 };
 
 const BUTTON_SIZES: Record<ButtonSize, string> = {
-  // 44px min height on the default size keeps tap targets reachable on mobile.
-  sm: "h-9 px-3 text-sm",
+  // `sm` is compact on pointer devices but grows to the 44px minimum tap target
+  // below the sm breakpoint, where these are row actions reached with a thumb.
+  sm: "h-9 max-sm:h-11 px-3 text-sm",
   md: "h-11 px-4 text-sm",
 };
 
