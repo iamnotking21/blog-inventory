@@ -5,6 +5,8 @@
  * no-op. Each file runs inside its own transaction: a file either applies
  * completely or not at all.
  */
+import "./load-env";
+
 import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import pg from "pg";

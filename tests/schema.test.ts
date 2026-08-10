@@ -12,7 +12,18 @@ import { getPool, query, queryOne } from "@/lib/db";
 // database has been reseeded, so assuming `1` makes the suite order-dependent.
 let branchId: string;
 
+/**
+ * This suite writes probe rows. Running it against a managed database would
+ * mean testing against production data, so it refuses unless the target is
+ * local or the operator opts in explicitly.
+ */
+const target = process.env.DATABASE_URL ?? "";
+const isLocal = /@(localhost|127\.0\.0\.1|db)[:/]/.test(target);
+const allowed = isLocal || process.env.ALLOW_REMOTE_DB_TESTS === "1";
+
 beforeAll(async () => {
+  if (!allowed) return;
+
   const branch = await queryOne<{ id: string }>(
     "select id from branches order by id limit 1",
   );
@@ -23,10 +34,11 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
+  if (!allowed) return;
   await getPool().end();
 });
 
-describe("schema", () => {
+describe.skipIf(!allowed)("schema", () => {
   it("has every expected table", async () => {
     const rows = await query<{ table_name: string }>(
       `select table_name from information_schema.tables
@@ -96,7 +108,7 @@ describe("schema", () => {
   });
 });
 
-describe("seeded data", () => {
+describe.skipIf(!allowed)("seeded data", () => {
   it("stores bcrypt hashes, never plaintext", async () => {
     const rows = await query<{ username: string; password_hash: string }>(
       "select username, password_hash from users",

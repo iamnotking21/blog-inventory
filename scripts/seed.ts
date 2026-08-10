@@ -4,6 +4,8 @@
  * The legacy SQL dump shipped real client names and plaintext passwords. None of
  * that is carried over: these are invented accounts with bcrypt-hashed passwords.
  */
+import "./load-env";
+
 import bcrypt from "bcryptjs";
 import pg from "pg";
 

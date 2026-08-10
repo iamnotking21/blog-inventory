@@ -119,6 +119,11 @@ npm test
 The suite runs against a real Postgres — in CI, a service container that has had
 the actual migrations applied.
 
+The schema tests write probe rows, so they skip themselves unless `DATABASE_URL`
+points at localhost or the compose service. Pointing them at a managed database
+requires `ALLOW_REMOTE_DB_TESTS=1`, which exists so `npm test` cannot quietly
+write into production.
+
 ## CI/CD
 
 `ci.yml` runs lint, typecheck, migrations, and tests against Postgres, then the
