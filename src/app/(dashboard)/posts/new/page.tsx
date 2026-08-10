@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { requireRole } from "@/lib/auth";
+import { requirePageRole } from "@/lib/auth";
 import { Card, CardHeader, PageHeader } from "@/components/ui";
 import { FadeIn } from "@/components/motion";
 import { PostForm } from "../post-form";
@@ -9,7 +9,7 @@ export const metadata: Metadata = { title: "New announcement" };
 export const dynamic = "force-dynamic";
 
 export default async function NewPostPage() {
-  await requireRole("super_admin");
+  await requirePageRole("super_admin");
 
   return (
     <>

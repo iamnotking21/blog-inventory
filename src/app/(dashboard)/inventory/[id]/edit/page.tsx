@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { branchScope, requireRole } from "@/lib/auth";
+import { branchScope, requirePageRole } from "@/lib/auth";
 import { getInventoryItem } from "@/lib/queries/inventory";
 import { listBranches } from "@/lib/queries/transactions";
 import { Card, CardHeader, PageHeader } from "@/components/ui";
@@ -18,7 +18,7 @@ export default async function EditInventoryItemPage({
 }) {
   // Page-level guard: hiding the "Add item" link from workers is not access
   // control on its own, so the route itself is role-checked too.
-  const session = await requireRole("super_admin", "branch_user");
+  const session = await requirePageRole("super_admin", "branch_user");
   const { id } = await params;
   const itemId = Number(id);
 

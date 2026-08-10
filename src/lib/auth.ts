@@ -1,6 +1,7 @@
 import "server-only";
 
 import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 import { SignJWT, jwtVerify } from "jose";
 import { queryOne } from "@/lib/db";
 
@@ -93,12 +94,38 @@ export async function requireSession(): Promise<Session> {
   return session;
 }
 
-/** Session or throw, additionally asserting the role is one of `allowed`. */
+/**
+ * Session or throw, additionally asserting the role is one of `allowed`.
+ *
+ * Use this in **server actions**, where throwing surfaces as a rejected action.
+ * Pages should use `requirePageRole`, which redirects instead — React strips
+ * error messages in production builds, so a page that throws here renders the
+ * generic "something broke" boundary rather than a readable refusal.
+ */
 export async function requireRole(...allowed: Role[]): Promise<Session> {
   const session = await requireSession();
 
   if (!allowed.includes(session.role)) {
     throw new Error("Not authorized");
+  }
+
+  return session;
+}
+
+/**
+ * Page-level counterpart to `requireRole`: redirects to /forbidden rather than
+ * throwing, so the visitor gets an explanation instead of a 500.
+ *
+ * This is still real enforcement — the redirect happens on the server before
+ * any data is queried or rendered.
+ */
+export async function requirePageRole(...allowed: Role[]): Promise<Session> {
+  const session = await getSession();
+
+  if (!session) redirect("/login");
+
+  if (!allowed.includes(session.role)) {
+    redirect("/forbidden");
   }
 
   return session;

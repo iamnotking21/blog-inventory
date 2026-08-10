@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { branchScope, requireRole } from "@/lib/auth";
+import { branchScope, requirePageRole } from "@/lib/auth";
 import {
   getMonthlyMovement,
   getReportSummary,
@@ -129,7 +129,7 @@ export default async function ReportsPage({
 }: {
   searchParams: Promise<{ from?: string; to?: string }>;
 }) {
-  const session = await requireRole("super_admin", "branch_user");
+  const session = await requirePageRole("super_admin", "branch_user");
   const scope = branchScope(session);
   const params = await searchParams;
   const defaults = defaultRange();

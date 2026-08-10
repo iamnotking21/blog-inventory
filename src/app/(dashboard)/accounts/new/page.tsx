@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { requireRole } from "@/lib/auth";
+import { requirePageRole } from "@/lib/auth";
 import { listBranches } from "@/lib/queries/transactions";
 import { Card, CardHeader, PageHeader } from "@/components/ui";
 import { FadeIn } from "@/components/motion";
@@ -10,7 +10,7 @@ export const metadata: Metadata = { title: "Add Account" };
 export const dynamic = "force-dynamic";
 
 export default async function NewAccountPage() {
-  await requireRole("super_admin");
+  await requirePageRole("super_admin");
   const branches = await listBranches();
 
   return (

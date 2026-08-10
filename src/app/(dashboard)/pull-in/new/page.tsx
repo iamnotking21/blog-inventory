@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { requireRole } from "@/lib/auth";
+import { requirePageRole } from "@/lib/auth";
 import { listBranches } from "@/lib/queries/transactions";
 import { Card, CardHeader, PageHeader } from "@/components/ui";
 import { FadeIn } from "@/components/motion";
@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 
 export default async function NewPullInPage() {
   // Must match createPullIn's guard — a worker should never reach the form.
-  const session = await requireRole("super_admin", "branch_user");
+  const session = await requirePageRole("super_admin", "branch_user");
   const isSuperAdmin = session.role === "super_admin";
   const branches = isSuperAdmin ? await listBranches() : [];
 

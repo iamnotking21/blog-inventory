@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { requireRole } from "@/lib/auth";
+import { requirePageRole } from "@/lib/auth";
 import { getPost } from "@/lib/queries/content";
 import { Card, CardHeader, PageHeader } from "@/components/ui";
 import { FadeIn } from "@/components/motion";
@@ -15,7 +15,7 @@ export default async function EditPostPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  await requireRole("super_admin");
+  await requirePageRole("super_admin");
   const { id } = await params;
   const postId = Number(id);
 

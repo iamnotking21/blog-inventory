@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { branchScope, requireRole } from "@/lib/auth";
+import { branchScope, requirePageRole } from "@/lib/auth";
 import { listInventory } from "@/lib/queries/inventory";
 import { listBranches } from "@/lib/queries/transactions";
 import { Card, CardHeader, PageHeader } from "@/components/ui";
@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
 
 export default async function NewPullOutPage() {
   // Must match createPullOut's guard — a worker should never reach the form.
-  const session = await requireRole("super_admin", "branch_user");
+  const session = await requirePageRole("super_admin", "branch_user");
   const scope = branchScope(session);
 
   // The source item picker is always scoped to the caller's own branch stock,

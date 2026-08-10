@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { requireRole } from "@/lib/auth";
+import { requirePageRole } from "@/lib/auth";
 import { listBranches } from "@/lib/queries/transactions";
 import { Card, CardHeader, PageHeader } from "@/components/ui";
 import { FadeIn } from "@/components/motion";
@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
 export default async function NewInventoryItemPage() {
   // Page-level guard: hiding the "Add item" link from workers is not access
   // control on its own, so the route itself is role-checked too.
-  const session = await requireRole("super_admin", "branch_user");
+  const session = await requirePageRole("super_admin", "branch_user");
   const branches =
     session.role === "super_admin" ? await listBranches() : null;
 

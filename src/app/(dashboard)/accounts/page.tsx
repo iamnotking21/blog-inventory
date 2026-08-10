@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { requireRole } from "@/lib/auth";
+import { requirePageRole } from "@/lib/auth";
 import { ROLE_LABELS, type Role } from "@/lib/roles";
 import { listUsers, type UserRow } from "@/lib/queries/content";
 import { Badge, Button, Card, CardHeader, PageHeader, statusTone } from "@/components/ui";
@@ -13,7 +13,7 @@ export const metadata: Metadata = { title: "Accounts" };
 export const dynamic = "force-dynamic";
 
 export default async function AccountsPage() {
-  const session = await requireRole("super_admin");
+  const session = await requirePageRole("super_admin");
   const users = await listUsers(null);
 
   const columns: Column<UserRow>[] = [
