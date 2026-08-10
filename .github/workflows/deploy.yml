@@ -66,7 +66,7 @@ jobs:
         run: vercel whoami --token=${{ secrets.VERCEL_TOKEN }}
 
       - name: Pull Vercel environment
-        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }} --debug
+        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
 
       - name: Build
         run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
@@ -78,16 +78,36 @@ jobs:
           echo "url=$url" >> "$GITHUB_OUTPUT"
           echo "Deployed to $url"
 
+      # Checks the production alias, not the immutable deployment URL that
+      # `vercel deploy` prints. That URL sits behind Vercel Deployment
+      # Protection and answers 302 to a login page for an unauthenticated
+      # caller, which is not a signal about the app at all.
+      #
+      # Override the domain with a repository variable named PRODUCTION_URL if
+      # the project is ever renamed or given a custom domain.
       - name: Verify the deployment is serving
+        env:
+          PRODUCTION_URL: ${{ vars.PRODUCTION_URL || 'https://blog-inventory.vercel.app' }}
         run: |
+          echo "Deployment URL: ${{ steps.deploy.outputs.url }}"
+          echo "Verifying against: $PRODUCTION_URL"
+
           for i in $(seq 1 20); do
-            code=$(curl -s -o /dev/null -w "%{http_code}" "${{ steps.deploy.outputs.url }}/api/health" || true)
+            code=$(curl -s -o /dev/null -w "%{http_code}" "$PRODUCTION_URL/api/health" || true)
+
             if [ "$code" = "200" ]; then
               echo "Health check passed."
               exit 0
             fi
+
+            if [ "$code" = "302" ] || [ "$code" = "401" ]; then
+              echo "::error::$PRODUCTION_URL/api/health returned $code. Vercel Deployment Protection is covering the production alias; disable it for production or make /api/health public."
+              exit 1
+            fi
+
             echo "Attempt $i returned $code; retrying."
             sleep 5
           done
+
           echo "::error::Deployment never returned a healthy response."
           exit 1
