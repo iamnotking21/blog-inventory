@@ -42,8 +42,31 @@ jobs:
       - name: Install Vercel CLI
         run: npm install --global vercel@latest
 
+      # Names the cause instead of failing inside `vercel pull` with a generic
+      # error. Only reports whether each secret is present, never its value.
+      - name: Check required secrets are present
+        run: |
+          missing=0
+          for name in VERCEL_TOKEN VERCEL_ORG_ID VERCEL_PROJECT_ID; do
+            case "$name" in
+              VERCEL_TOKEN)      value="${{ secrets.VERCEL_TOKEN }}" ;;
+              VERCEL_ORG_ID)     value="${{ secrets.VERCEL_ORG_ID }}" ;;
+              VERCEL_PROJECT_ID) value="${{ secrets.VERCEL_PROJECT_ID }}" ;;
+            esac
+            if [ -z "$value" ]; then
+              echo "::error::Repository secret $name is missing or empty."
+              missing=1
+            else
+              echo "$name is set (${#value} characters)."
+            fi
+          done
+          exit $missing
+
+      - name: Confirm the token authenticates
+        run: vercel whoami --token=${{ secrets.VERCEL_TOKEN }}
+
       - name: Pull Vercel environment
-        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }} --debug
 
       - name: Build
         run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
